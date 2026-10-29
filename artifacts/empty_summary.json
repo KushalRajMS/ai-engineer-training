@@ -1,0 +1,5 @@
+{
+    "filename": "empty.txt",
+    "summary": "Mock response for: 'Summarize the following text in bullet points:'\nModel: mock-model\nStatus: success",
+    "success": true
+}

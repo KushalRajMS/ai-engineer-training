@@ -1,0 +1,5 @@
+{
+    "filename": "ai_overview.txt",
+    "summary": "Mock response for: 'Summarize the following text in bullet points:\n\nArtificial Intelligence is the field of computer science focused on building systems that can perform tasks that typically require human intelligence. These tasks include understanding language, recognising patterns, making decisions, and solving problems. Modern AI systems are powered by machine learning models that learn from large amounts of data rather than following hand-written rules.'\nModel: mock-model\nStatus: success",
+    "success": true
+}
