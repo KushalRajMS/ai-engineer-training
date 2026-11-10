@@ -29,7 +29,7 @@ def extract_sources(chunks):
         source.append(
             {
                 "source": chunk.metadata.get("source", "unknown"),
-                "chunk_index": chunk.metadata.get("chunk_index", "unknown")
+                "chunk_index": chunk.metadata.get("chunk_index", None)
             }
         )
     return source

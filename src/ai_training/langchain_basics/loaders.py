@@ -16,13 +16,22 @@ def load_pdf(file_path: str) -> list:
     except ValueError:
         return []
 
-def load_directory(dir_path: str, extension: str) -> list:
-    try:
-        dir_loader= DirectoryLoader(path= dir_path, glob= extension, loader_cls= TextLoader)
-        docs= dir_loader.load()
-        return docs
-    except ValueError:
-        return []
+def load_directory(dir_path: str, extension: list[str]) -> list:
+    loader_map= {
+        ".txt": TextLoader,
+        ".pdf": PyPDFLoader,
+    }
+    all_docs= []
+    for pattern in extension:
+        ext= f".{pattern.split('.')[-1]}"
+        loader= loader_map.get(ext)
+        try:
+            dir_loader= DirectoryLoader(path= dir_path, glob= pattern, loader_cls= loader)
+            docs= dir_loader.load()
+            all_docs.extend(docs)
+        except (ValueError, Exception):
+            continue
+    return all_docs
 
 if __name__ == "__main__":
     text= load_text(file_path= "data/inputs/ai_overview.txt")

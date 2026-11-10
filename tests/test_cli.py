@@ -90,3 +90,20 @@ def test_ask_empty_question():
     result = runner.invoke(app, ["ask", "", "--store", "artifacts/vector_store/"])
     assert result.exit_code == 0
     assert "empty" in result.output.lower() or "question" in result.output.lower()
+
+def test_ask_command(monkeypatch):
+    monkeypatch.setattr("ai_training.cli.make_embedder", lambda: None)
+    monkeypatch.setattr("ai_training.cli.load_vector_store", lambda store, embedder: None)
+    monkeypatch.setattr("ai_training.cli.make_retriever", lambda vs, k: None)
+    monkeypatch.setattr("ai_training.cli.make_llm", lambda: None)
+    monkeypatch.setattr(
+        "ai_training.cli.run_rag_with_sources",
+        lambda retriever, question, llm: {
+            "answer": "AI is intelligence.",
+            "sources": [{"source": "file.txt", "chunk_index": 0}],
+        },
+    )
+    result = runner.invoke(app, ["ask", "What is AI?", "--store", "any/path/"])
+    assert result.exit_code == 0
+    assert "AI is intelligence." in result.output
+    assert "file.txt" in result.output

@@ -10,7 +10,7 @@ def ingest_documents(source_path, chunk_size= 500, chunk_overlap= 50, doc_id= No
         elif str(source.suffix) == ".pdf":
             docs= load_pdf(source_path)
     elif source.is_dir():
-        docs= load_directory(source_path, extension="**/*.txt")
+        docs= load_directory(source_path, extension=["**/*.txt", "**/*.pdf"])
     chunks= split_documents(docs= docs, chunk_size= chunk_size, chunk_overlap= chunk_overlap)
     chunks= enrich_chunk_metadata(chunks= chunks, doc_id= doc_id)
     return chunks

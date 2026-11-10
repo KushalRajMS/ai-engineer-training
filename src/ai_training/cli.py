@@ -8,7 +8,7 @@ from ai_training.chat.profiles import PROMPT_PROFILES
 from ai_training.pipeline.summarizer import Summarizer
 from ai_training.pipeline.file_loader import FileLoader
 from ai_training.pipeline.output_writer import OutputWriter
-from ai_training.langchain_basics.rag import build_retrieval_pipeline, run_rag_with_sources
+from ai_training.langchain_basics.rag import run_rag_with_sources
 from ai_training.langchain_basics.chains import make_llm
 from ai_training.langchain_basics.ingestion import ingest_documents
 from ai_training.langchain_basics.embeddings import make_embedder

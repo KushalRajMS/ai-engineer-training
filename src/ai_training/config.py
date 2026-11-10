@@ -15,6 +15,7 @@ def get_env_value(key: str, default: Optional[str] = None) -> Optional[str]:
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+MAX_FILE_SIZE = 5*1024*1024
 
 APP_CONFIG = {
     "provider": get_env_value("LLM_PROVIDER", "mock"),
