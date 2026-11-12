@@ -1,4 +1,4 @@
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from ai_training.langchain_basics.retrieval_pipeline import build_retrieval_pipeline
 from ai_training.langchain_basics.chains import make_llm
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
