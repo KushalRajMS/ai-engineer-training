@@ -9,7 +9,7 @@ from pathlib import Path
 from ai_training.config import ARTIFACTS_DIR, MAX_FILE_SIZE
 from functools import lru_cache
 from fastapi.concurrency import run_in_threadpool
-from ai_training.api.services import build_store
+from ai_training.api.services import build_store, clean_sources
 
 app= FastAPI(
     title= "Ask My Docs API",
@@ -47,6 +47,8 @@ def ask(request: AskRequest):
         result= run_rag_with_sources(retriever, request.question, llm)
     except Exception:
         raise HTTPException(status_code=502, detail="Language model request failed.")
+
+    result["sources"] = clean_sources(result["sources"])
     return result
 
 @app.post("/ingest", response_model= IngestResponse)

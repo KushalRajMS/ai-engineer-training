@@ -72,7 +72,7 @@ def _patch_pipeline(monkeypatch, tmp_path, chunks):
         return len(chunks)
 
     monkeypatch.setattr("ai_training.api.main.build_store", fake_build_store)
-    
+
 def test_ingest_success(monkeypatch, tmp_path):
     _patch_pipeline(monkeypatch, tmp_path, ["c1", "c2"])
     response = client.post("/ingest", files={"file": ("notes.txt", b"hello world", "text/plain")})
@@ -102,3 +102,20 @@ def test_ingest_strips_folder_from_filename(monkeypatch, tmp_path):
     client.post("/ingest", files={"file": ("../../evil.txt", b"hi", "text/plain")})
     assert (tmp_path / "uploads" / "evil.txt").exists()
     assert not (tmp_path.parent / "evil.txt").exists()
+
+def test_ask_sources_return_filename_only(monkeypatch, tmp_path):
+    (tmp_path / "vector_store").mkdir()
+    monkeypatch.setattr("ai_training.api.main.ARTIFACTS_DIR", tmp_path)
+    monkeypatch.setattr("ai_training.api.main.get_embedder", lambda: None)
+    monkeypatch.setattr("ai_training.api.main.load_vector_store", lambda store, embedder: None)
+    monkeypatch.setattr("ai_training.api.main.make_retriever", lambda vs, k: None)
+    monkeypatch.setattr("ai_training.api.main.make_llm", lambda: None)
+    monkeypatch.setattr(
+        "ai_training.api.main.run_rag_with_sources",
+        lambda retriever, question, llm: {
+            "answer": "ok",
+            "sources": [{"source": "/Users/someone/private/dir/notes.txt", "chunk_index": 0}],
+        },
+    )
+    response = client.post("/ask", json={"question": "What is AI?"})
+    assert response.json()["sources"][0]["source"] == "notes.txt"
