@@ -18,6 +18,16 @@ dependencies = [
   "ruff",
   "typer",
   "rich",
+  "fastapi",
+  "uvicorn",
+  "python-multipart",
+  "langchain",
+  "langchain-community",
+  "langchain-groq",
+  "langchain-huggingface",
+  "faiss-cpu",
+  "sentence-transformers",
+  "pypdf",
 ]
 
 [tool.setuptools]
