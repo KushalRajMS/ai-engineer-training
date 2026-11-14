@@ -10,10 +10,27 @@ from ai_training.config import ARTIFACTS_DIR, MAX_FILE_SIZE
 from functools import lru_cache
 from fastapi.concurrency import run_in_threadpool
 from ai_training.api.services import build_store, clean_sources
+import logging
+from contextlib import asynccontextmanager
+from ai_training.logging_config import setup_logging
+from ai_training.settings import get_settings
+
+logger= logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app):
+    settings= get_settings()
+    setup_logging(settings.log_level)
+    (ARTIFACTS_DIR / "uploads").mkdir(parents=True, exist_ok=True)
+    logger.info("Starting: env=%s model=%s embed=%s",
+                settings.app_env, settings.llm_model, settings.embed_model)
+    yield
+    logger.info("Shutting down")
 
 app= FastAPI(
     title= "Ask My Docs API",
-    description= "API helps to get you the information from the provided source."
+    description= "API helps to get you the information from the provided source.",
+    lifespan= lifespan
 )
 
 @lru_cache(maxsize=1)
@@ -40,12 +57,14 @@ def ask(request: AskRequest):
     try:
         vector_store= load_vector_store(str(store), embedder)
     except Exception:
+        logger.exception("Could not load vector store")
         raise HTTPException(status_code=500, detail="Couldnt load vector store.")
     retriever= make_retriever(vector_store, k=request.k)
     llm= make_llm()
     try:
         result= run_rag_with_sources(retriever, request.question, llm)
     except Exception:
+        logger.exception("LLM request failed")
         raise HTTPException(status_code=502, detail="Language model request failed.")
 
     result["sources"] = clean_sources(result["sources"])
@@ -71,6 +90,7 @@ async def ingest(file: UploadFile = File(...)):
             detail="File sized exceeded 5 MB."
         )
     filename= file_obj.name
+    logger.info("Ingest started: %s (%d bytes)", filename, len(content))
     upload_store= ARTIFACTS_DIR / "uploads"
     vector_path= ARTIFACTS_DIR / "vector_store"
     upload_store.mkdir(parents=True, exist_ok=True)
@@ -83,17 +103,20 @@ async def ingest(file: UploadFile = File(...)):
         upload_filepath.unlink(missing_ok=True)
         raise
     except ValueError:
+        logger.warning("Ingest rejected, no content: %s", filename)
         upload_filepath.unlink(missing_ok=True)
         raise HTTPException(
             status_code=400,
             detail="Upload file can not be empty."
         )
     except Exception:
+        logger.exception("Ingest failed for %s", filename)
         upload_filepath.unlink(missing_ok=True)
         raise HTTPException(
             status_code=500,
             detail="Couldn't create vector store."
         )
+    logger.info("Ingest finished: %s -> %d chunks", filename, count)
     return {
         "filename": filename,
         "chunks": count,
