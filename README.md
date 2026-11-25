@@ -11,8 +11,10 @@ A Python command-line toolkit built during a 90-day GenAI Engineer training plan
 | Chatbot | Multi-turn chat with prompt modes and streaming | `bot` |
 | Text Summarizer | Summarizes one file or a whole folder in three styles | `summarize-file`, `batch` |
 | Ask My Docs (RAG) | Answers questions from your documents, with sources | `ingest`, `ask` |
-
+| Home Control | Natural-language home control with confirmation, sessions and an audit log | `/home/command`, `/home/state`, `/home/audit` |
 ---
+
+Home Control details and design decisions: see [HOME_CONTROL.md](HOME_CONTROL.md). Deployment notes: see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Architecture
 

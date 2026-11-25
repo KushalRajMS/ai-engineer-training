@@ -33,6 +33,7 @@ Set these in the Render dashboard under **Environment**. Never commit them.
 | `LLM_MODEL` | No | Default `openai/gpt-oss-20b`. |
 | `EMBED_MODEL` | No | Default `all-MiniLM-L6-v2`. |
 | `APP_ENV` | No | Default `development`. Use `production` on the server. |
+| `HOME_API_KEY` | Yes, for `/home/*` | Key clients send in the `X-API-Key` header. Without it every `/home/*` call returns 401. |
 
 ## Pinned dependencies
 
@@ -75,6 +76,8 @@ The API key is never logged.
 - **Temporary disk:** `artifacts/uploads/` and `artifacts/vector_store/` are wiped on every restart or redeploy. After that, `/ask` returns 404 "Vector store not found" until a document is ingested again.
 - **Cold start:** the free tier sleeps when idle, so the first request can take about a minute.
 - **Single index:** each `/ingest` rebuilds the vector store from every file in `uploads/`.
+- **Home audit log:** stored in SQLite at `artifacts/audit.db`, which is wiped with the temporary disk on every restart.
+- **Home endpoints and memory:** `/home/*` does not load the embedding model, so it can run on the free tier, unlike `/ingest` and `/ask`.
 
 ## Troubleshooting
 
