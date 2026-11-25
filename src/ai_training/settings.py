@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     max_file_size: int = 5 * 1024 * 1024
     vector_store_dir: str = "vector_store"
     log_level: str = "INFO"
-
+    audit_db_path: str = "artifacts/audit.db"
+    home_api_key: str = ""
+    
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

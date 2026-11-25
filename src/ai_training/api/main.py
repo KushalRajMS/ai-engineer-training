@@ -14,6 +14,7 @@ import logging
 from contextlib import asynccontextmanager
 from ai_training.logging_config import setup_logging
 from ai_training.settings import get_settings
+from ai_training.home.api import router as home_router
 
 logger= logging.getLogger(__name__)
 
@@ -32,6 +33,8 @@ app= FastAPI(
     description= "API helps to get you the information from the provided source.",
     lifespan= lifespan
 )
+
+app.include_router(home_router)
 
 @lru_cache(maxsize=1)
 def get_embedder():

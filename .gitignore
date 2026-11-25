@@ -7,3 +7,4 @@ __pycache__/
 .pytest_cache/
 artifacts/vector_store/
 artifacts/uploads/artifacts/uploads/
+artifacts/audit.db
