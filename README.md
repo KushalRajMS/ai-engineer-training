@@ -1,72 +1,41 @@
-# AI Engineer Training: Chatbot, Summarizer and Ask My Docs (RAG)
+# AI Engineer Training: Summarizer, Ask My Docs (RAG) and Home Control
 
-A Python command-line toolkit built during a 90-day GenAI Engineer training plan. It includes an interactive chatbot, single-file and batch summarization, and **Ask My Docs**, a RAG app that answers questions about your own documents and cites its sources. Everything runs behind a provider abstraction (Groq and Mock), so you can switch models without changing application code.
+A Python repo built over a 90-day plan, going from Python basics to deployed LLM applications. It has three projects that share one provider abstraction (Groq or Mock), so models can be swapped without changing application code.
 
 ---
 
-## Projects
+## What's inside
 
-| Project | What it does | Commands |
-|---|---|---|
-| Chatbot | Multi-turn chat with prompt modes and streaming | `bot` |
-| Text Summarizer | Summarizes one file or a whole folder in three styles | `summarize-file`, `batch` |
-| Ask My Docs (RAG) | Answers questions from your documents, with sources | `ingest`, `ask` |
-| Home Control | Natural-language home control with confirmation, sessions and an audit log | `/home/command`, `/home/state`, `/home/audit` |
+| Project | What it does | Interface | Details |
+|---|---|---|---|
+| Text Summarizer | Summarizes one file or a whole folder in three styles (brief, detailed, bullets) | CLI: `summarize-file`, `batch` | [Usage](#text-summarizer-and-chatbot) |
+| Ask My Docs (RAG) | Answers questions about your own documents and cites its sources | CLI: `ingest`, `ask`. API: `/ingest`, `/ask` | [Usage](#ask-my-docs-rag) |
+| Home Control | Controls a simulated household in plain English, with confirmation for risky actions and an audit log | API: `/home/command`, `/home/state`, `/home/audit` | [HOME_CONTROL.md](HOME_CONTROL.md) |
+
+The repo also contains an interactive chatbot (`bot` command) with prompt modes and streaming.
+
 ---
 
-Home Control details and design decisions: see [HOME_CONTROL.md](HOME_CONTROL.md). Deployment notes: see [DEPLOYMENT.md](DEPLOYMENT.md).
-
-## Architecture
-
-### Chatbot and Summarizer
+## Architecture overview
 
 ```text
-CLI (typer)
-  -> ChatBot / Summarizer
-    -> Provider (Groq / Mock)
-      -> ChatSession (history, windowing, metadata)
-        -> OutputWriter (artifacts/)
+Clients (CLI, HTTP)
+  -> FastAPI (/ask, /ingest, /home/*)
+  -> Chat / RAG / Agent logic
+  -> Provider abstraction (Groq, Mock)
+  -> Storage (FAISS vector store, SQLite audit log, files)
 ```
 
-- **CLI**: entry point for all commands
-- **ChatBot**: manages conversation state and provider calls
-- **Summarizer**: builds prompts and processes file content
-- **Provider**: abstraction layer; swap Groq for Mock without changing anything else
-- **ChatSession**: stores history, windowing, and metadata
-- **OutputWriter**: persists results to `artifacts/`
-
-### Ask My Docs (RAG)
-
-```text
-Ingest (run once)
-  Documents (.txt / .pdf)
-    -> Loaders
-    -> Text splitter (chunks + metadata)
-    -> Embeddings (HuggingFace all-MiniLM-L6-v2)
-    -> FAISS vector store (saved to disk)
-
-Ask (run many times)
-  Question
-    -> Load vector store
-    -> Retriever (top-k similar chunks)
-    -> Prompt with context
-    -> LLM (Groq)
-    -> Answer + sources
-```
-
-- **Loaders**: read files into LangChain `Document` objects
-- **Splitter**: breaks documents into overlapping chunks and tags each with source, chunk index and doc id
-- **Embeddings**: turn each chunk into a vector that captures its meaning
-- **FAISS**: stores vectors locally and finds the chunks closest in meaning to a question
-- **Retriever**: returns the top-k chunks for a question
-- **RAG prompt**: tells the LLM to answer only from the retrieved context, and to say "I don't know" otherwise
-- **Sources**: the metadata of the retrieved chunks, shown with every answer
-
-The repo also contains a conversation-memory retriever (follow-up questions are rewritten using chat history) and a tool-calling agent with normalized tool outputs, built as part of the training plan.
+- **Providers**: `GroqProvider` calls the Groq API. `MockProvider` returns fixed responses, used for tests and for trying the CLI without a key.
+- **RAG**: documents are loaded, split into chunks with metadata, embedded (HuggingFace `all-MiniLM-L6-v2`), stored in FAISS, retrieved by similarity, and passed to the LLM with a prompt that says to answer only from the context.
+- **Agent**: a tool-calling LLM agent. In Home Control, a guard in code sits between the LLM and the device tools.
+- **API**: FastAPI with Pydantic validation and clear status codes.
 
 ---
 
-## Setup
+## Quick start
+
+Requires **Python 3.9 or newer**.
 
 ```bash
 git clone https://github.com/KushalRajMS/ai-engineer-training.git
@@ -76,21 +45,97 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Create a `.env` file in the project root:
+Try it with the Mock provider. No API key is needed:
+
+```bash
+python -m ai_training.cli summarize-file data/inputs/ai_overview.txt --provider mock --style bullets
+```
+
+For real model output, create a `.env` file in the project root:
 
 ```text
-GROQ_API_KEY=your_key_here
-LLM_MODEL=openai/gpt-oss-20b
-LC_TEMPERATURE=0
+GROQ_API_KEY=your_groq_key
+HOME_API_KEY=a-long-random-string
+```
+
+Generate a random key with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 Never commit `.env`. It is listed in `.gitignore`.
 
+Start the API server:
+
+```bash
+uvicorn ai_training.api.main:app --reload
+```
+
+Then open `http://127.0.0.1:8000/docs` for the interactive API documentation.
+
 ---
 
-## Usage
+## Tests
 
-### Ask My Docs (RAG)
+```bash
+pytest -q
+```
+
+The tests use fake LLMs, fake vector stores and temporary databases, so they run without a network connection or API key.
+
+---
+
+## Project docs
+
+- [HOME_CONTROL.md](HOME_CONTROL.md): Home Control architecture, design decisions and limits
+- [DEPLOYMENT.md](DEPLOYMENT.md): deploying to Render, environment variables, known limits, troubleshooting
+
+---
+
+## Limits
+
+- The Render free tier has 512 MB of RAM, which is not enough to load the embedding model, so `/ingest` and `/ask` fail there. `/home/*` does not load it.
+- The Render free tier disk is temporary. The vector store and the audit log are wiped on restart.
+- Home Control devices are simulated, and the API key is one shared secret, not per-user accounts.
+- Local development was done on Python 3.9. The Render deployment uses Python 3.11.9 with pinned dependencies.
+
+---
+
+# Usage reference
+
+## Text Summarizer and Chatbot
+
+**Summarize a file:**
+
+```bash
+python -m ai_training.cli summarize-file data/inputs/ai_overview.txt --provider groq --style brief
+python -m ai_training.cli summarize-file data/inputs/python_intro.txt --provider mock --style bullets
+```
+
+**Summarize every file in a folder:**
+
+```bash
+python -m ai_training.cli batch data/inputs/ --provider mock --style detailed --output-dir artifacts/
+```
+
+**Chat:**
+
+```bash
+python -m ai_training.cli bot --provider groq --prompt-mode default
+python -m ai_training.cli bot --provider mock --stream
+```
+
+| Option | Commands | Meaning |
+|---|---|---|
+| `--provider` | `bot`, `summarize-file`, `batch` | `groq` or `mock` |
+| `--model` | `bot`, `summarize-file`, `batch` | Model name (Groq only) |
+| `--style` | `summarize-file`, `batch` | `brief`, `detailed` or `bullets` |
+| `--prompt-mode` | `bot` | `default`, `technical_writer`, `data_analyst` or `code_reviewer` |
+| `--stream` | `bot` | Print the reply as it is generated |
+| `--output-dir` | `batch` | Where result files are saved |
+
+## Ask My Docs (RAG)
 
 Step 1: ingest your documents once. This builds and saves the vector store.
 
@@ -98,7 +143,7 @@ Step 1: ingest your documents once. This builds and saves the vector store.
 python -m ai_training.cli ingest --source data/inputs/ --store artifacts/vector_store/
 ```
 
-Step 2: ask questions. Each query loads the saved store, so it is fast.
+Step 2: ask questions. Each query loads the saved store.
 
 ```bash
 python -m ai_training.cli ask "What is Python?" --store artifacts/vector_store/
@@ -116,61 +161,22 @@ Sources:
 - data/inputs/ai_overview.txt (chunk 1)
 ```
 
-| Option | Command | Meaning |
-|---|---|---|
-| `--source` | `ingest` | Folder or file to load (`.txt`, `.pdf`) |
-| `--store` | `ingest`, `ask` | Where the vector store is saved or loaded from |
-| `--k` | `ask` | Number of chunks to retrieve (default 3) |
+Through the API, `POST /ingest` uploads a `.txt` or `.pdf` file (up to 5 MB) and rebuilds the store, and `POST /ask` takes `{"question": "...", "k": 3}`. Only filenames are returned as sources, never server paths.
 
-### Chat
-
-```bash
-python -m ai_training.cli bot --provider groq --prompt-mode default
-python -m ai_training.cli bot --provider mock --stream
-```
-
-### Summarize a file
-
-```bash
-python -m ai_training.cli summarize-file data/inputs/ai_overview.txt --provider groq --style brief
-python -m ai_training.cli summarize-file data/inputs/python_intro.txt --provider mock --style bullets
-```
-
-### Batch summarize
-
-```bash
-python -m ai_training.cli batch data/inputs/ --provider mock --style detailed --output-dir artifacts/
-```
-
----
-
-## Error Handling
+## Error handling
 
 | Scenario | Behaviour |
 |---|---|
-| `ask` before `ingest` (no vector store) | Prints the missing path and the exact `ingest` command to run |
-| Empty question passed to `ask` | Prints "Question can not be blank or empty." and exits cleanly |
-| Empty file in the documents folder | Skipped during ingestion; other files still load |
-| File not found (summarizer) | Clear message printed, exits cleanly |
+| `ask` before `ingest` | Prints the missing path and the `ingest` command to run |
+| Empty question | Clear message, exits cleanly (API returns 422) |
+| Empty file in the documents folder | Skipped during ingestion |
 | Unknown provider | Lists valid options, exits with code 1 |
 | Unknown prompt mode | Warning printed, falls back to default |
-| Empty chat input | ValueError caught, error message printed |
-| Failed summarization | Marked as failed in the report, batch continues |
-| Answer not in the documents | The prompt instructs the model to reply "I don't know" instead of guessing |
+| Failed summarization | Marked as failed in the batch report, the batch continues |
+| Answer not in the documents | The prompt tells the model to say "I don't know" |
+| API: unsupported file type or oversize upload | 415 or 413 |
 
----
-
-## Run Tests
-
-```bash
-pytest --tb=short
-```
-
-Unit tests use fake providers, retrievers and vector stores, so they run without network access or API keys.
-
----
-
-## Project Structure
+## Project structure
 
 ```text
 src/ai_training/
@@ -179,14 +185,11 @@ src/ai_training/
   pipeline/           file loading, summarizing, output writing
   langchain_basics/   loaders, splitters, embeddings, vector store,
                       RAG, memory retriever, tools, agent
-  cli.py              all terminal commands
+  home/               Home Control: devices, guarded agent, audit log, API router
+  api/                FastAPI app, models, services
+  cli.py              terminal commands
+  settings.py         typed settings
 data/inputs/          sample documents
 artifacts/            generated outputs
 tests/                unit tests
 ```
-
----
-
-## Sample Inputs
-
-Sample documents are in `data/inputs/`. Run any command above against them right after setup.
